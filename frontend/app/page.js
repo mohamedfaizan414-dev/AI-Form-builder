@@ -94,13 +94,13 @@ export default function HomePage() {
   }
 
   return (
-    <main className="relative overflow-hidden">
+    <main className="relative overflow-hidden w-full">
       <div className="pointer-events-none absolute inset-0 -z-10">
         <div className="absolute -top-40 left-1/2 -translate-x-1/2 h-[600px] w-[900px] rounded-full bg-emerald-500/10 blur-3xl" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.04)_1px,transparent_0)] [background-size:24px_24px]" />
       </div>
 
-      <nav className="flex items-center justify-between px-6 sm:px-10 py-6 max-w-6xl mx-auto">
+      <nav className="flex items-center justify-between px-4 sm:px-10 py-6 max-w-6xl mx-auto w-full">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center">
             <Sparkles className="w-4 h-4 text-canvas" />
@@ -127,17 +127,17 @@ export default function HomePage() {
         </div>
       </nav>
 
-      <section className="px-6 max-w-3xl mx-auto text-center pt-10 sm:pt-16 pb-10">
+      <section className="px-4 sm:px-6 max-w-3xl mx-auto text-center pt-10 sm:pt-16 pb-10 w-full">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass text-xs text-emerald-300 mb-6 animate-fade-up">
           <Wand2 className="w-3.5 h-3.5" />
           Describe it. We'll build it.
         </div>
-        <h1 className="font-display font-semibold text-4xl sm:text-6xl leading-[1.05] tracking-tight animate-fade-up [animation-delay:0.05s]">
+        <h1 className="font-display font-semibold text-3xl sm:text-6xl leading-[1.05] tracking-tight animate-fade-up [animation-delay:0.05s]">
           Forms that build
           <br />
           <span className="text-gradient">themselves.</span>
         </h1>
-        <p className="mt-5 text-white/50 text-base sm:text-lg max-w-xl mx-auto animate-fade-up [animation-delay:0.1s]">
+        <p className="mt-5 text-white/50 text-sm sm:text-lg max-w-xl mx-auto animate-fade-up [animation-delay:0.1s]">
           Type a sentence. Get a fully working, beautifully designed form — fields, validation, and theme included.
         </p>
 
@@ -147,13 +147,13 @@ export default function HomePage() {
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="e.g. A feedback form for a yoga studio with a 5-star rating"
-              className="flex-1 bg-transparent px-4 py-3.5 outline-none text-sm sm:text-base placeholder:text-white/30"
+              className="flex-1 bg-transparent px-4 py-3.5 outline-none text-sm sm:text-base placeholder:text-white/30 min-w-0"
               disabled={generating}
             />
             <button
               type="submit"
               disabled={generating || !prompt.trim()}
-              className="flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 disabled:bg-white/10 disabled:text-white/30 text-canvas font-medium px-5 py-3.5 rounded-xl transition-all active:scale-95"
+              className="flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 disabled:bg-white/10 disabled:text-white/30 text-canvas font-medium px-5 py-3.5 rounded-xl transition-all active:scale-95 text-sm sm:text-base whitespace-nowrap"
             >
               {generating ? (
                 <span className="w-4 h-4 border-2 border-canvas/40 border-t-canvas rounded-full animate-spin" />
@@ -172,7 +172,7 @@ export default function HomePage() {
             <button
               key={s}
               onClick={() => setPrompt(s)}
-              className="text-xs text-white/50 hover:text-emerald-300 border border-white/10 hover:border-emerald-400/40 rounded-full px-3 py-1.5 transition-colors"
+              className="text-[11px] sm:text-xs text-white/50 hover:text-emerald-300 border border-white/10 hover:border-emerald-400/40 rounded-full px-3 py-1.5 transition-colors max-w-full truncate"
             >
               {s}
             </button>
@@ -180,7 +180,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="px-6 max-w-5xl mx-auto pb-24 pt-10">
+      <section className="px-4 sm:px-6 max-w-5xl mx-auto pb-24 pt-10 w-full">
         <h2 className="text-sm font-medium text-white/40 mb-4 uppercase tracking-wider">Your forms</h2>
 
         {loadingForms ? (
@@ -190,37 +190,39 @@ export default function HomePage() {
             ))}
           </div>
         ) : forms.length === 0 ? (
-          <div className="glass rounded-2xl p-10 text-center text-white/40 text-sm">
+          <div className="glass rounded-2xl p-10 text-center text-white/40 text-sm w-full">
             No forms yet. Generate your first one above.
           </div>
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
             {forms.map((form) => (
               <div
                 key={form.id}
                 onClick={() => router.push(`/builder?id=${form.id}`)}
-                className="glass rounded-2xl p-5 flex flex-col justify-between hover:border-emerald-400/30 border border-transparent transition-colors group cursor-pointer active:scale-[0.99]"
+                className="glass rounded-2xl p-5 flex flex-col justify-between hover:border-emerald-400/30 border border-transparent transition-colors group cursor-pointer active:scale-[0.99] w-full min-w-0 overflow-hidden"
               >
-                <div>
+                {/* FIX: added min-w-0 layout constraint to allow child truncations to activate properly */}
+                <div className="min-w-0">
                   <div className="flex items-center gap-2 text-emerald-300 mb-2">
-                    <FileText className="w-4 h-4" />
+                    <FileText className="w-4 h-4 shrink-0" />
                     <span className="text-xs uppercase tracking-wide">Form</span>
                   </div>
-                  <h3 className="font-display font-medium text-lg truncate">{form.title}</h3>
-                  <p className="text-white/40 text-sm mt-1 line-clamp-2">{form.description}</p>
+                  <h3 className="font-display font-medium text-lg truncate w-full">{form.title}</h3>
+                  <p className="text-white/40 text-sm mt-1 line-clamp-2 w-full break-words">{form.description}</p>
                 </div>
-                <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/5">
-                  <span className="text-sm text-emerald-300 group-hover:text-emerald-200 flex items-center gap-1 font-medium">
-                    View Insights <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+                
+                <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/5 w-full min-w-0">
+                  <span className="text-xs sm:text-sm text-emerald-300 group-hover:text-emerald-200 flex items-center gap-1 font-medium truncate mr-2">
+                    View Insights <ArrowRight className="w-3.5 h-3.5 shrink-0 transition-transform group-hover:translate-x-0.5" />
                   </span>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 shrink-0">
                     <button
                       onClick={(e) => {
-                        e.stopPropagation(); // Prevents navigating to the builder page
+                        e.stopPropagation();
                         copyLink(form.id);
                       }}
                       title="Copy shareable link"
-                      className="text-white/40 hover:text-emerald-300 relative z-10"
+                      className="text-white/40 hover:text-emerald-300 relative z-10 p-1"
                     >
                       {copiedId === form.id ? <Check className="w-4 h-4 text-emerald-400" /> : <Link2 className="w-4 h-4" />}
                     </button>
@@ -228,17 +230,17 @@ export default function HomePage() {
                       href={`/form/${form.id}`}
                       target="_blank"
                       rel="noreferrer"
-                      onClick={(e) => e.stopPropagation()} // Prevents navigating to the builder page
-                      className="text-white/40 hover:text-white relative z-10"
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-white/40 hover:text-white relative z-10 p-1"
                     >
                       <ExternalLink className="w-4 h-4" />
                     </a>
                     <button 
                       onClick={(e) => {
-                        e.stopPropagation(); // Prevents navigating to the builder page
+                        e.stopPropagation();
                         deleteForm(form.id);
                       }} 
-                      className="text-white/40 hover:text-red-400 relative z-10"
+                      className="text-white/40 hover:text-red-400 relative z-10 p-1"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
