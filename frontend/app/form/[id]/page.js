@@ -1,12 +1,11 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Sparkles, Star, Loader2, CheckCircle2, Type, Mail, Phone, Hash,
   AlignLeft, ChevronDown, Calendar,
 } from 'lucide-react';
 
-// FIX: Added the explicit fallback backend endpoint to match AuthContext and Builder configurations
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://ai-form-builder-h6bz.onrender.com/api';
 
 const ICONS = {
@@ -15,9 +14,8 @@ const ICONS = {
 };
 
 export default function PublicFormPage({ params }) {
-  // Safely unwrap reactive parameters object for modern Next.js environments
-  const unwrappedParams = use(params);
-  const id = unwrappedParams?.id;
+  // FIX: Destructure id directly from params since Next.js 14 parses params synchronously
+  const id = params?.id;
 
   const [form, setForm] = useState(null);
   const [answers, setAnswers] = useState({});
@@ -26,11 +24,8 @@ export default function PublicFormPage({ params }) {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!id) {
-      console.log("No id present")
-    }
+    if (!id) return;
     
-    // Public non-auth fetch to grab the schema structure
     fetch(`${API}/forms/${id}`)
       .then((r) => {
         if (!r.ok) throw new Error('Form not found');
@@ -52,7 +47,6 @@ export default function PublicFormPage({ params }) {
     setSubmitting(true);
     setError('');
     try {
-      // POST directly to the public submission route we configured on the Express backend
       const res = await fetch(`${API}/forms/${id}/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -109,7 +103,7 @@ export default function PublicFormPage({ params }) {
       <div className="max-w-lg mx-auto relative">
         <div className="flex items-center gap-2 justify-center mb-6 text-white/30 text-xs uppercase tracking-wider">
           <Sparkles className="w-3.5 h-3.5" style={{ color: accent }} />
-          Powered by Zetaform
+          Powered by Formix
         </div>
 
         <form onSubmit={handleSubmit} className="glass rounded-3xl p-6 sm:p-9 shadow-2xl shadow-black/40 animate-fade-up">

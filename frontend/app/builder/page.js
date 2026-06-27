@@ -31,33 +31,37 @@ function BuilderInner() {
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   
-  // New State variables for managing Submissions and Tab switching
   const [submissions, setSubmissions] = useState([]);
   const [loadingSubmissions, setLoadingSubmissions] = useState(false);
-  const [activeTab, setActiveTab] = useState('chat'); // Toggle options: 'chat' | 'submissions'
+  const [activeTab, setActiveTab] = useState('chat');
   
   const scrollRef = useRef(null);
 
+  // FIX: Added explicit local storage check fallback to prevent premature routing before AuthContext token evaluation resolves
   useEffect(() => {
-    if (!authLoading && !user) router.replace('/login');
+    if (typeof window !== 'undefined') {
+      const hasToken = localStorage.getItem('formix_token');
+      if (!authLoading && !user && !hasToken) {
+        router.replace('/login');
+      }
+    }
   }, [authLoading, user, router]);
 
   useEffect(() => {
-    if (!formId) return;
+    if (!formId || !user) return; // Prevent public execution if profile details aren't ready yet
+    
     fetch(`${API}/forms/${formId}`)
       .then((r) => r.json())
       .then(setForm)
-      .catch(() => {});
+      .catch((err) => console.error("Fetch form failed:", err));
       
-    // Fetch submissions immediately when the form view loads
     fetchSubmissions();
-  }, [formId]);
+  }, [formId, user]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages]);
 
-  // Function to pull submission logs from the secure backend endpoint
   async function fetchSubmissions() {
     if (!formId) return;
     setLoadingSubmissions(true);
@@ -129,19 +133,22 @@ function BuilderInner() {
     });
   }
 
-  if (authLoading || !user) {
+  // Await user parsing profile context layout safely
+  if (authLoading || (!user && typeof window !== 'undefined' && localStorage.getItem('formix_token'))) {
     return (
-      <div className="h-screen flex items-center justify-center">
+      <div className="h-screen flex items-center justify-center bg-canvas">
         <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
       </div>
     );
   }
+
   if (!formId) {
-    return <div className="p-10 text-white/50">No form selected. Go back to the dashboard.</div>;
+    return <div className="p-10 text-white/50 bg-canvas min-h-screen">No form selected. Go back to the dashboard.</div>;
   }
+
   if (!form) {
     return (
-      <div className="h-screen flex items-center justify-center">
+      <div className="h-screen flex items-center justify-center bg-canvas">
         <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
       </div>
     );
@@ -151,26 +158,26 @@ function BuilderInner() {
   const accent = form.theme?.primaryColor || '#10b981';
 
   return (
-    <div className="h-screen flex flex-col bg-canvas">
+    <div className="h-screen flex flex-col bg-canvas text-[#e7e9ec]">
       <header className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-border glass z-10">
         <div className="flex items-center gap-3 min-w-0">
           <button onClick={() => router.push('/')} className="text-white/50 hover:text-white shrink-0">
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <span className="font-display font-medium truncate">{form.title}</span>
+          <span className="font-display font-medium truncate text-white">{form.title}</span>
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <button
             onClick={copyLink}
             title="Copy shareable link"
-            className="flex items-center gap-1.5 text-xs text-white/60 hover:text-emerald-300 border border-white/10 rounded-lg px-3 py-1.5"
+            className="flex items-center gap-1.5 text-xs text-white/60 hover:text-emerald-300 border border-white/10 rounded-lg px-3 py-1.5 transition-colors"
           >
             {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Link2 className="w-3.5 h-3.5" />}
             {copied ? 'Copied' : 'Copy link'}
           </button>
           <button
             onClick={generateSummary}
-            className="hidden sm:flex items-center gap-1.5 text-xs text-white/60 hover:text-emerald-300 border border-white/10 rounded-lg px-3 py-1.5"
+            className="hidden sm:flex items-center gap-1.5 text-xs text-white/60 hover:text-emerald-300 border border-white/10 rounded-lg px-3 py-1.5 transition-colors"
           >
             <BarChart3 className="w-3.5 h-3.5" /> AI Summary
           </button>
@@ -178,7 +185,7 @@ function BuilderInner() {
             href={`/form/${formId}`}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-1.5 text-xs bg-emerald-500 hover:bg-emerald-400 text-canvas font-medium rounded-lg px-3 py-1.5"
+            className="flex items-center gap-1.5 text-xs bg-emerald-500 hover:bg-emerald-400 text-canvas font-medium rounded-lg px-3 py-1.5 shadow-lg shadow-emerald-500/10 transition-all duration-200"
           >
             <Share2 className="w-3.5 h-3.5" /> Share
           </a>
@@ -186,10 +193,8 @@ function BuilderInner() {
       </header>
 
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-        {/* Dynamic Sidebar Container */}
         <div className="lg:w-[380px] flex flex-col border-b lg:border-b-0 lg:border-r border-border h-[45vh] lg:h-full bg-canvas shrink-0">
           
-          {/* Tab Navigation Menu */}
           <div className="flex border-b border-border bg-surface/20 text-xs font-medium uppercase tracking-wider text-white/40 select-none">
             <button
               onClick={() => setActiveTab('chat')}
@@ -215,7 +220,6 @@ function BuilderInner() {
             </button>
           </div>
 
-          {/* VIEW TAB 1: AI Chat Assistant Panel */}
           {activeTab === 'chat' && (
             <>
               <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
@@ -224,26 +228,26 @@ function BuilderInner() {
                     key={i}
                     className={`max-w-[90%] text-sm rounded-2xl px-3.5 py-2.5 animate-fade-up ${
                       m.role === 'user'
-                        ? 'bg-emerald-500 text-canvas ml-auto rounded-br-sm'
-                        : 'bg-surface2 text-white/80 rounded-bl-sm'
+                        ? 'bg-emerald-500 text-canvas ml-auto rounded-br-sm font-medium'
+                        : 'bg-surface2 text-white/80 rounded-bl-sm border border-white/5'
                     }`}
                   >
                     {m.text}
                   </div>
                 ))}
                 {sending && (
-                  <div className="flex items-center gap-2 text-white/40 text-xs px-2">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Updating form...
+                  <div className="flex items-center gap-2 text-white/40 text-xs px-2 animate-pulse">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" /> Updating form layout...
                   </div>
                 )}
                 {summaryLoading && (
-                  <div className="flex items-center gap-2 text-white/40 text-xs px-2">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Crunching submissions...
+                  <div className="flex items-center gap-2 text-white/40 text-xs px-2 animate-pulse">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" /> Analyzing metrics...
                   </div>
                 )}
                 {summary && (
-                  <div className="bg-surface2 border border-emerald-400/20 rounded-2xl px-3.5 py-3 text-sm text-white/80 whitespace-pre-wrap">
-                    <p className="text-emerald-300 text-xs font-medium mb-1.5 uppercase tracking-wide">Executive Summary</p>
+                  <div className="bg-surface2 border border-emerald-500/10 rounded-2xl p-4 text-sm text-white/80 whitespace-pre-wrap leading-relaxed animate-fade-up shadow-inner">
+                    <p className="text-emerald-400 text-xs font-semibold mb-2 uppercase tracking-wider">Executive Insights</p>
                     {summary}
                   </div>
                 )}
@@ -253,13 +257,13 @@ function BuilderInner() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="e.g. Add a phone field, make it emerald"
-                  className="flex-1 bg-surface2 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:ring-1 focus:ring-emerald-400/50 placeholder:text-white/30"
+                  className="flex-1 bg-surface2 border border-white/5 text-white rounded-xl px-3.5 py-2.5 text-sm outline-none focus:ring-1 focus:ring-emerald-400/30 placeholder:text-white/20"
                   disabled={sending}
                 />
                 <button
                   type="submit"
                   disabled={sending || !input.trim()}
-                  className="bg-emerald-500 hover:bg-emerald-400 disabled:bg-white/10 text-canvas rounded-xl px-3.5 shrink-0"
+                  className="bg-emerald-500 hover:bg-emerald-400 disabled:bg-white/5 text-canvas disabled:text-white/30 rounded-xl px-3.5 shrink-0 transition-colors"
                 >
                   <Send className="w-4 h-4" />
                 </button>
@@ -267,7 +271,6 @@ function BuilderInner() {
             </>
           )}
 
-          {/* VIEW TAB 2: Responses Feed Panel */}
           {activeTab === 'submissions' && (
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 custom-scrollbar">
               {loadingSubmissions ? (
@@ -296,7 +299,6 @@ function BuilderInner() {
                       </span>
                     </div>
 
-                    {/* Maps dynamic user answers directly onto the existing form schema fields structure */}
                     <div className="space-y-2 text-xs">
                       {fields.map((field) => {
                         const rawAns = sub.answers?.[field.id];
@@ -323,15 +325,14 @@ function BuilderInner() {
           )}
         </div>
 
-        {/* Live preview section stays consistent on the right */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-8 sm:py-12 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.03),transparent_60%)]">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-8 sm:py-12 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.02),transparent_60%)]">
           <div className="max-w-lg mx-auto">
-            <div className="glass rounded-3xl p-6 sm:p-8 shadow-2xl shadow-black/40">
+            <div className="glass rounded-3xl p-6 sm:p-8 shadow-2xl shadow-black/40 border border-white/[0.06]">
               <div className="flex items-center gap-2 mb-1">
                 <Sparkles className="w-4 h-4" style={{ color: accent }} />
                 <span className="text-xs uppercase tracking-wider text-white/40">Live preview</span>
               </div>
-              <h2 className="font-display text-2xl font-semibold mt-2">{form.title}</h2>
+              <h2 className="font-display text-2xl font-semibold mt-2 text-white">{form.title}</h2>
               {form.description && <p className="text-white/50 text-sm mt-1.5">{form.description}</p>}
 
               <div className="mt-6 space-y-5">
@@ -343,7 +344,7 @@ function BuilderInner() {
               {fields.length > 0 && (
                 <button
                   style={{ backgroundColor: accent }}
-                  className="w-full mt-7 text-canvas font-medium rounded-xl py-3 text-sm transition-transform active:scale-[0.98]"
+                  className="w-full mt-7 text-canvas font-medium rounded-xl py-3 text-sm transition-all duration-200 opacity-80 cursor-not-allowed"
                   disabled
                 >
                   Submit
@@ -373,21 +374,21 @@ function PreviewField({ field, accent }) {
           placeholder={field.placeholder}
           disabled
           rows={3}
-          className="w-full bg-surface2 border border-border rounded-xl px-3.5 py-2.5 text-sm placeholder:text-white/25 resize-none"
+          className="w-full bg-[#12151b] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-white/25 resize-none outline-none cursor-not-allowed"
         />
       ) : field.type === 'select' ? (
-        <select disabled className="w-full bg-surface2 border border-border rounded-xl px-3.5 py-2.5 text-sm text-white/40">
+        <select disabled className="w-full bg-[#12151b] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white/40 cursor-not-allowed">
           <option>{field.placeholder || 'Select an option'}</option>
           {(field.options || []).map((o) => (
             <option key={o}>{o}</option>
           ))}
         </select>
       ) : field.type === 'radio' || field.type === 'checkbox' ? (
-        <div className="space-y-1.5">
+        <div className="space-y-1.5 pl-1">
           {(field.options || []).map((o) => (
-            <label key={o} className="flex items-center gap-2 text-sm text-white/60">
+            <label key={o} className="flex items-center gap-2 text-sm text-white/60 cursor-not-allowed">
               <span
-                className="w-3.5 h-3.5 rounded-full border border-white/20 inline-block"
+                className="w-3.5 h-3.5 rounded-full border border-white/20 bg-[#12151b] inline-block"
                 style={field.type === 'checkbox' ? { borderRadius: 4 } : {}}
               />
               {o}
@@ -395,9 +396,9 @@ function PreviewField({ field, accent }) {
           ))}
         </div>
       ) : field.type === 'rating' ? (
-        <div className="flex gap-1.5">
+        <div className="flex gap-1.5 pl-0.5">
           {[1, 2, 3, 4, 5].map((i) => (
-            <Star key={i} className="w-5 h-5 text-white/20" />
+            <Star key={i} className="w-5 h-5 text-white/20 cursor-not-allowed" />
           ))}
         </div>
       ) : (
@@ -405,7 +406,7 @@ function PreviewField({ field, accent }) {
           type={field.type === 'date' ? 'date' : field.type === 'number' ? 'number' : 'text'}
           placeholder={field.placeholder}
           disabled
-          className="w-full bg-surface2 border border-border rounded-xl px-3.5 py-2.5 text-sm placeholder:text-white/25"
+          className="w-full bg-[#12151b] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-white/25 outline-none cursor-not-allowed"
         />
       )}
     </div>
@@ -414,7 +415,7 @@ function PreviewField({ field, accent }) {
 
 export default function BuilderPage() {
   return (
-    <Suspense fallback={<div className="h-screen flex items-center justify-center text-white/40">Loading...</div>}>
+    <Suspense fallback={<div className="h-screen flex items-center justify-center text-white/40 bg-canvas">Loading...</div>}>
       <BuilderInner />
     </Suspense>
   );
