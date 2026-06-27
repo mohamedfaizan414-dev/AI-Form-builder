@@ -26,7 +26,9 @@ export default function PublicFormPage({ params }) {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!id) return;
+    if (!id) return(<>
+    <h1>No id</h1>
+    </>);
     
     // Public non-auth fetch to grab the schema structure
     fetch(`${API}/forms/${id}`)
