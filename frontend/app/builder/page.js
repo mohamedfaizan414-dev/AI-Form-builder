@@ -37,21 +37,24 @@ function BuilderInner() {
   
   const scrollRef = useRef(null);
 
-  // FIX: Added explicit local storage check fallback to prevent premature routing before AuthContext token evaluation resolves
+  // PRODUCTION FIX: Safe, non-blocking authentication sync guard
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const hasToken = localStorage.getItem('formix_token');
-      if (!authLoading && !user && !hasToken) {
+    if (!authLoading) {
+      const hasToken = typeof window !== 'undefined' && localStorage.getItem('formix_token');
+      if (!user && !hasToken) {
         router.replace('/login');
       }
     }
   }, [authLoading, user, router]);
 
   useEffect(() => {
-    if (!formId || !user) return; // Prevent public execution if profile details aren't ready yet
+    if (!formId || !user) return;
     
     fetch(`${API}/forms/${formId}`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error('Form configuration unreachable');
+        return r.json();
+      })
       .then(setForm)
       .catch((err) => console.error("Fetch form failed:", err));
       
@@ -133,22 +136,22 @@ function BuilderInner() {
     });
   }
 
-  // Await user parsing profile context layout safely
+  // PRODUCTION HANDSHAKE LOADING STATE
   if (authLoading || (!user && typeof window !== 'undefined' && localStorage.getItem('formix_token'))) {
     return (
-      <div className="h-screen flex items-center justify-center bg-canvas">
+      <div className="h-screen flex items-center justify-center bg-[#0a0c10]">
         <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
       </div>
     );
   }
 
   if (!formId) {
-    return <div className="p-10 text-white/50 bg-canvas min-h-screen">No form selected. Go back to the dashboard.</div>;
+    return <div className="p-10 text-white/50 bg-[#0a0c10] min-h-screen">No form selected. Go back to the dashboard.</div>;
   }
 
   if (!form) {
     return (
-      <div className="h-screen flex items-center justify-center bg-canvas">
+      <div className="h-screen flex items-center justify-center bg-[#0a0c10]">
         <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
       </div>
     );
@@ -158,8 +161,8 @@ function BuilderInner() {
   const accent = form.theme?.primaryColor || '#10b981';
 
   return (
-    <div className="h-screen flex flex-col bg-canvas text-[#e7e9ec]">
-      <header className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-border glass z-10">
+    <div className="h-screen flex flex-col bg-[#0a0c10] text-[#e7e9ec]">
+      <header className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-white/5 glass z-10">
         <div className="flex items-center gap-3 min-w-0">
           <button onClick={() => router.push('/')} className="text-white/50 hover:text-white shrink-0">
             <ArrowLeft className="w-5 h-5" />
@@ -193,9 +196,9 @@ function BuilderInner() {
       </header>
 
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-        <div className="lg:w-[380px] flex flex-col border-b lg:border-b-0 lg:border-r border-border h-[45vh] lg:h-full bg-canvas shrink-0">
+        <div className="lg:w-[380px] flex flex-col border-b lg:border-b-0 lg:border-r border-white/5 h-[45vh] lg:h-full bg-[#0a0c10] shrink-0">
           
-          <div className="flex border-b border-border bg-surface/20 text-xs font-medium uppercase tracking-wider text-white/40 select-none">
+          <div className="flex border-b border-white/5 bg-surface/20 text-xs font-medium uppercase tracking-wider text-white/40 select-none">
             <button
               onClick={() => setActiveTab('chat')}
               className={`flex-1 py-3.5 flex items-center justify-center gap-2 border-b-2 transition-all ${
@@ -252,12 +255,12 @@ function BuilderInner() {
                   </div>
                 )}
               </div>
-              <form onSubmit={sendInstruction} className="p-3 border-t border-border flex gap-2 bg-canvas">
+              <form onSubmit={sendInstruction} className="p-3 border-t border-white/5 flex gap-2 bg-[#0a0c10]">
                 <input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="e.g. Add a phone field, make it emerald"
-                  className="flex-1 bg-surface2 border border-white/5 text-white rounded-xl px-3.5 py-2.5 text-sm outline-none focus:ring-1 focus:ring-emerald-400/30 placeholder:text-white/20"
+                  className="flex-1 bg-[#12151b] border border-white/5 text-white rounded-xl px-3.5 py-2.5 text-sm outline-none focus:ring-1 focus:ring-emerald-400/30 placeholder:text-white/20"
                   disabled={sending}
                 />
                 <button
@@ -415,7 +418,7 @@ function PreviewField({ field, accent }) {
 
 export default function BuilderPage() {
   return (
-    <Suspense fallback={<div className="h-screen flex items-center justify-center text-white/40 bg-canvas">Loading...</div>}>
+    <Suspense fallback={<div className="h-screen flex items-center justify-center text-white/40 bg-[#0a0c10]">Loading...</div>}>
       <BuilderInner />
     </Suspense>
   );
