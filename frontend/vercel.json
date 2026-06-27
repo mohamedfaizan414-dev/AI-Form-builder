@@ -1,9 +1,7 @@
 {
-    "experimentalServices": {
-        "frontend": {
-            "root": "/",
-            "routePrefix": "/",
-            "framework": "nextjs"
-        }
-    }
+  "cleanUrls": true,
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/" }
+  ]
 }
