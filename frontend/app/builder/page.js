@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API = process.env.NEXT_PUBLIC_API_URL || 'https://ai-form-builder-h6bz.onrender.com/api';
 
 const FIELD_ICONS = {
   text: Type, email: Mail, phone: Phone, number: Hash, textarea: AlignLeft,
