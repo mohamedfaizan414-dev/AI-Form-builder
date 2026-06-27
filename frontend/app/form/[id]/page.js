@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, use } from 'react'; // Added 'use' from react
 import {
   Sparkles, Star, Loader2, CheckCircle2, Type, Mail, Phone, Hash,
   AlignLeft, ChevronDown, Calendar,
@@ -14,7 +14,10 @@ const ICONS = {
 };
 
 export default function PublicFormPage({ params }) {
-  const { id } = params;
+  // FIX: Safely unwrap reactive parameters object for modern Next.js environments
+  const unwrappedParams = use(params);
+  const id = unwrappedParams?.id;
+
   const [form, setForm] = useState(null);
   const [answers, setAnswers] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -22,6 +25,8 @@ export default function PublicFormPage({ params }) {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (!id) return; // Prevent executing request if parameters are still structural resolved
+    
     fetch(`${API}/forms/${id}`)
       .then((r) => {
         if (!r.ok) throw new Error('not found');
