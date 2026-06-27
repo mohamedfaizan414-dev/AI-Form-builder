@@ -13,6 +13,42 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Checks for post-auth saved action strings in cache sequence
+  const checkPendingGeneration = useCallback((activeFetchMethod) => {
+    // FIX: Changed from 'zetaform_pending_prompt' to 'formix_pending_prompt' to match your landing page
+    const savedPrompt = localStorage.getItem('formix_pending_prompt');
+    if (!savedPrompt) return;
+
+    localStorage.removeItem('formix_pending_prompt');
+    
+    // Auto trigger generation API right away if a prompt was sitting in memory
+    activeFetchMethod('/ai/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: savedPrompt }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.schema) {
+          activeFetchMethod('/forms', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title: data.schema.title,
+              description: data.schema.description,
+              schema: data.schema.fields,
+              theme: data.schema.theme,
+            }),
+          })
+            .then((res) => res.json())
+            .then((form) => {
+              if (form?.id) router.push(`/builder?id=${form.id}`);
+            });
+        }
+      })
+      .catch((e) => console.error("Pending prompt generation failed:", e));
+  }, [router]);
+
   useEffect(() => {
     const stored = localStorage.getItem('formix_token');
     if (!stored) {
@@ -25,20 +61,38 @@ export function AuthProvider({ children }) {
         if (!r.ok) throw new Error('invalid session');
         return r.json();
       })
-      .then((data) => setUser(data.user))
+      .then((data) => {
+        setUser(data.user);
+        // Execute generator if a guest clicked generate pre-login
+        setTimeout(() => {
+          checkPendingGeneration((path, options = {}) => {
+            const headers = { ...(options.headers || {}), Authorization: `Bearer ${stored}` };
+            return fetch(`${API}${path}`, { ...options, headers });
+          });
+        }, 100);
+      })
       .catch(() => {
         localStorage.removeItem('formix_token');
         setToken(null);
         setUser(null);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [checkPendingGeneration]);
 
   const applySession = useCallback((newToken, newUser) => {
     localStorage.setItem('formix_token', newToken);
     setToken(newToken);
+    
+    // FIX: Removed 'setUser(newToken);' which was corrupting the user object state with a token string
     setUser(newUser);
-  }, []);
+
+    // Prompt generator helper sequence block
+    const transientFetch = (path, options = {}) => {
+      const headers = { ...(options.headers || {}), Authorization: `Bearer ${newToken}` };
+      return fetch(`${API}${path}`, { ...options, headers });
+    };
+    checkPendingGeneration(transientFetch);
+  }, [checkPendingGeneration]);
 
   const login = useCallback(
     async (email, password) => {
