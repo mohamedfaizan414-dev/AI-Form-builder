@@ -7,6 +7,13 @@ import { Sparkles, Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import GoogleButton from '../components/GoogleButton';
 
+const PENDING_PROMPT_KEY = 'formix_pending_prompt';
+
+function postLoginRedirect(router) {
+  const hasPendingPrompt = typeof window !== 'undefined' && sessionStorage.getItem(PENDING_PROMPT_KEY);
+  router.push(hasPendingPrompt ? '/' : '/dashboard');
+}
+
 export default function LoginPage() {
   const { login } = useAuth();
   const router = useRouter();
@@ -21,7 +28,7 @@ export default function LoginPage() {
     setError('');
     try {
       await login(email, password);
-      router.push('/');
+      postLoginRedirect(router);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -49,7 +56,7 @@ export default function LoginPage() {
           <p className="text-white/40 text-sm text-center mt-1.5">Log in to manage your forms and responses.</p>
 
           <div className="mt-7 w-full">
-            <GoogleButton label="Continue with Google" />
+            <GoogleButton label="Continue with Google" onSuccessRedirect={() => postLoginRedirect(router)} />
           </div>
 
           <div className="flex items-center gap-3 my-6">

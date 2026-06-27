@@ -7,6 +7,13 @@ import { Sparkles, User, Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import GoogleButton from '../components/GoogleButton';
 
+const PENDING_PROMPT_KEY = 'formix_pending_prompt';
+
+function postSignupRedirect(router) {
+  const hasPendingPrompt = typeof window !== 'undefined' && sessionStorage.getItem(PENDING_PROMPT_KEY);
+  router.push(hasPendingPrompt ? '/' : '/dashboard');
+}
+
 export default function SignupPage() {
   const { signup } = useAuth();
   const router = useRouter();
@@ -22,7 +29,7 @@ export default function SignupPage() {
     setError('');
     try {
       await signup(name, email, password);
-      router.push('/');
+      postSignupRedirect(router);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -50,7 +57,7 @@ export default function SignupPage() {
           <p className="text-white/40 text-sm text-center mt-1.5">Start building AI-powered forms in seconds.</p>
 
           <div className="mt-7 w-full">
-            <GoogleButton label="Sign up with Google" />
+            <GoogleButton label="Sign up with Google" onSuccessRedirect={() => postSignupRedirect(router)} />
           </div>
 
           <div className="flex items-center gap-3 my-6">

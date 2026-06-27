@@ -6,7 +6,7 @@ import {
   AlignLeft, ChevronDown, Calendar,
 } from 'lucide-react';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'https://ai-form-builder-h6bz.onrender.com/api';
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 const ICONS = {
   text: Type, email: Mail, phone: Phone, number: Hash, textarea: AlignLeft,
@@ -14,9 +14,7 @@ const ICONS = {
 };
 
 export default function PublicFormPage({ params }) {
-  // FIX: Destructure id directly from params since Next.js 14 parses params synchronously
-  const id = params?.id;
-
+  const { id } = params;
   const [form, setForm] = useState(null);
   const [answers, setAnswers] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -24,18 +22,13 @@ export default function PublicFormPage({ params }) {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!id) return;
-    
     fetch(`${API}/forms/${id}`)
       .then((r) => {
-        if (!r.ok) throw new Error('Form not found');
+        if (!r.ok) throw new Error('not found');
         return r.json();
       })
       .then(setForm)
-      .catch((err) => {
-        console.error("Fetch form error:", err);
-        setError('This form could not be found or is no longer available.');
-      });
+      .catch(() => setError('This form could not be found.'));
   }, [id]);
 
   function setAnswer(fieldId, value) {
@@ -52,10 +45,10 @@ export default function PublicFormPage({ params }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ answers }),
       });
-      if (!res.ok) throw new Error('Submission failed');
+      if (!res.ok) throw new Error('submit failed');
       setSubmitted(true);
-    } catch (err) {
-      setError('Could not submit your responses. Please try again.');
+    } catch {
+      setError('Could not submit the form. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -63,17 +56,12 @@ export default function PublicFormPage({ params }) {
 
   if (error && !form) {
     return (
-      <div className="h-screen flex items-center justify-center text-white/50 px-6 text-center bg-[#0a0c10]">
-        <div className="glass rounded-2xl p-6 max-w-sm">
-          <p className="text-sm font-medium text-red-400">{error}</p>
-        </div>
-      </div>
+      <div className="h-screen flex items-center justify-center text-white/50 px-6 text-center">{error}</div>
     );
   }
-
   if (!form) {
     return (
-      <div className="h-screen flex items-center justify-center bg-[#0a0c10]">
+      <div className="h-screen flex items-center justify-center">
         <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
       </div>
     );
@@ -84,7 +72,7 @@ export default function PublicFormPage({ params }) {
 
   if (submitted) {
     return (
-      <main className="min-h-screen flex items-center justify-center px-6 bg-[#0a0c10]">
+      <main className="min-h-screen flex items-center justify-center px-6">
         <div className="glass rounded-3xl p-10 max-w-md w-full text-center animate-fade-up">
           <CheckCircle2 className="w-12 h-12 mx-auto mb-4" style={{ color: accent }} />
           <h1 className="font-display text-2xl font-semibold">Thanks for that.</h1>
@@ -95,7 +83,7 @@ export default function PublicFormPage({ params }) {
   }
 
   return (
-    <main className="min-h-screen px-4 sm:px-6 py-10 sm:py-16 relative overflow-hidden bg-[#0a0c10]">
+    <main className="min-h-screen px-4 sm:px-6 py-10 sm:py-16 relative overflow-hidden">
       <div
         className="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 h-[500px] w-[800px] rounded-full blur-3xl opacity-20"
         style={{ background: accent }}
@@ -134,7 +122,7 @@ export default function PublicFormPage({ params }) {
 
 function FormField({ field, value, onChange, accent }) {
   const Icon = ICONS[field.type] || Type;
-  const base = 'w-full bg-[#12151b] border border-white/10 rounded-xl px-3.5 py-3 text-sm placeholder:text-white/25 outline-none focus:ring-1 transition-shadow';
+  const base = 'w-full bg-surface2 border border-border rounded-xl px-3.5 py-3 text-sm placeholder:text-white/25 outline-none focus:ring-1 transition-shadow';
 
   return (
     <div>
