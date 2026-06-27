@@ -48,7 +48,8 @@ export default function LoginPage() {
           <h1 className="font-display text-2xl font-semibold text-center">Welcome back</h1>
           <p className="text-white/40 text-sm text-center mt-1.5">Log in to manage your forms and responses.</p>
 
-          <div className="mt-7">
+          {/* FIX: Restrained container prevents Google SDK UI from overflowing narrow viewports */}
+          <div className="mt-7 w-full max-w-full overflow-hidden flex flex-col items-center justify-center">
             <GoogleButton label="Continue with Google" />
           </div>
 
