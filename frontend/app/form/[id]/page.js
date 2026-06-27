@@ -6,7 +6,7 @@ import {
   AlignLeft, ChevronDown, Calendar,
 } from 'lucide-react';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API = process.env.NEXT_PUBLIC_API_URL;
 
 const ICONS = {
   text: Type, email: Mail, phone: Phone, number: Hash, textarea: AlignLeft,
