@@ -31,7 +31,7 @@ export default function SignupPage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-6 relative overflow-hidden">
+    <main className="min-h-screen flex items-center justify-center px-4 sm:px-6 relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10">
         <div className="absolute -top-40 left-1/2 -translate-x-1/2 h-[600px] w-[900px] rounded-full bg-emerald-500/10 blur-3xl" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.04)_1px,transparent_0)] [background-size:24px_24px]" />
@@ -45,12 +45,11 @@ export default function SignupPage() {
           <span className="font-display font-semibold text-lg tracking-tight">Formix</span>
         </Link>
 
-        <div className="glass rounded-3xl p-7 sm:p-9 shadow-2xl shadow-black/40">
+        <div className="glass rounded-3xl p-6 sm:p-9 shadow-2xl shadow-black/40">
           <h1 className="font-display text-2xl font-semibold text-center">Create your account</h1>
           <p className="text-white/40 text-sm text-center mt-1.5">Start building AI-powered forms in seconds.</p>
 
-          {/* FIX: Restrained container prevents Google SDK UI from overflowing narrow viewports */}
-          <div className="mt-7 w-full max-w-full overflow-hidden flex flex-col items-center justify-center">
+          <div className="mt-7 w-full">
             <GoogleButton label="Sign up with Google" />
           </div>
 
