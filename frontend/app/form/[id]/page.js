@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 
 // FIX: Added the explicit fallback backend endpoint to match AuthContext and Builder configurations
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API = process.env.NEXT_PUBLIC_API_URL || 'https://ai-form-builder-h6bz.onrender.com/api';
 
 const ICONS = {
   text: Type, email: Mail, phone: Phone, number: Hash, textarea: AlignLeft,
