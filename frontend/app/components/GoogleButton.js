@@ -1,77 +1,71 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { useRouter } from 'next/navigation';
+
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
 export default function GoogleButton({ label = 'Continue with Google' }) {
-  const [client, setClient] = useState(null);
+  const { loginWithGoogle } = useAuth();
+  const router = useRouter();
+  const divRef = useRef(null);
+  const [error, setError] = useState('');
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // Load the Google Script dynamically if it isn't loaded yet
-    const scriptId = 'google-gsi-client-script';
-    let script = document.getElementById(scriptId);
+    if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.includes('your-google-oauth-client-id')) return;
 
-    const initializeClient = () => {
-      if (window.google?.accounts?.oauth2) {
-        const tokenClient = window.google.accounts.oauth2.initTokenClient({
-          client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
-          scope: 'openid profile email',
-          callback: (response) => {
-            if (response.access_token) {
-              // Pass the access token or handle custom context authentication here
-              console.log('Google Auth Access Token:', response.access_token);
-            }
-          },
-        });
-        setClient(tokenClient);
-      }
-    };
+    function init() {
+      if (!window.google || !divRef.current) return;
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: async (response) => {
+          try {
+            await loginWithGoogle(response.credential);
+            router.push('/');
+          } catch (err) {
+            setError(err.message || 'Google sign-in failed');
+          }
+        },
+      });
+      window.google.accounts.id.renderButton(divRef.current, {
+        theme: 'filled_black',
+        size: 'large',
+        shape: 'pill',
+        width: 320,
+        text: label === 'Continue with Google' ? 'continue_with' : 'signup_with',
+      });
+      setReady(true);
+    }
 
-    if (!script) {
-      script = document.createElement('script');
-      script.id = scriptId;
+    if (window.google) {
+      init();
+    } else {
+      const script = document.createElement('script');
       script.src = 'https://accounts.google.com/gsi/client';
       script.async = true;
       script.defer = true;
-      script.onload = initializeClient;
+      script.onload = init;
       document.body.appendChild(script);
-    } else if (window.google) {
-      initializeClient();
     }
-  }, []);
+  }, [loginWithGoogle, router, label]);
 
-  const handleGoogleLogin = () => {
-    if (client) {
-      client.requestAccessToken();
-    } else {
-      console.error('Google Auth SDK not initialized yet.');
-    }
-  };
+  if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.includes('your-google-oauth-client-id')) {
+    return (
+      <div className="text-xs text-white/30 border border-white/10 rounded-xl py-3 text-center">
+        Set NEXT_PUBLIC_GOOGLE_CLIENT_ID to enable Google sign-in
+      </div>
+    );
+  }
 
   return (
-    <button
-      type="button"
-      onClick={handleGoogleLogin}
-      className="w-full flex items-center justify-center gap-3 bg-surface2 hover:bg-white/5 border border-border text-white rounded-xl py-3 px-4 text-sm font-medium transition-all active:scale-[0.98] select-none"
-    >
-      <svg className="w-5 h-5 min-w-[20px]" viewBox="0 0 24 24">
-        <path
-          fill="#EA4335"
-          d="M5.266 9.765A7.077 7.077 0 0 1 12 4.909c1.69 0 3.218.6 4.418 1.582l3.51-3.51C17.642 1.091 14.973 0 12 0 7.354 0 3.307 2.664 1.291 6.56l3.975 3.205z"
-        />
-        <path
-          fill="#4285F4"
-          d="M16.04 15.345c-1.054.71-2.4 1.164-4.04 1.164a7.076 7.076 0 0 1-6.716-4.855L1.31 14.86c2.018 3.91 6.065 6.58 10.69 6.58 3.136 0 5.954-1.045 8.045-2.882l-3.995-3.213z"
-        />
-        <path
-          fill="#FBBC05"
-          d="M5.284 11.654a7.03 7.03 0 0 1 0-2.308L1.31 6.14a11.93 11.93 0 0 0 0 8.72l3.973-3.206z"
-        />
-        <path
-          fill="#34A853"
-          d="M23.49 12.275c0-.627-.064-1.345-.191-1.964H12v4.11h6.473a5.555 5.555 0 0 1-2.427 3.636l3.996 3.213c2.336-2.155 3.445-5.328 3.445-8.995z"
-        />
-      </svg>
-      <span className="truncate">{label}</span>
-    </button>
+    <div className="flex flex-col items-center gap-2">
+      <div className="relative w-full min-h-[44px] flex items-center justify-center">
+        <div ref={divRef} className={!ready ? 'opacity-0 absolute' : ''} />
+        {!ready && <div className="w-full h-11 rounded-full border border-white/10 animate-pulse bg-white/5" />}
+      </div>
+      {error && <p className="text-red-400 text-xs">{error}</p>}
+    </div>
   );
 }
