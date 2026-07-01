@@ -10,14 +10,17 @@
     "db:init": "node -r dotenv/config -e \"require('./db').initSchema()\""
   },
   "dependencies": {
-    "groq-sdk": "^0.7.0",
     "bcryptjs": "^2.4.3",
+    "cloudinary": "^2.10.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.1",
     "google-auth-library": "^9.15.0",
+    "groq-sdk": "^0.7.0",
     "jsonwebtoken": "^9.0.2",
-    "pg": "^8.13.1"
+    "multer": "^2.2.0",
+    "pg": "^8.13.1",
+    "streamifier": "^0.1.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.7"

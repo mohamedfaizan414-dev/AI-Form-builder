@@ -3,20 +3,21 @@
 import { useState, useEffect } from 'react';
 import {
   Sparkles, Star, Loader2, CheckCircle2, Type, Mail, Phone, Hash,
-  AlignLeft, ChevronDown, Calendar,
+  AlignLeft, ChevronDown, Calendar, Upload, FileAction, Paperclip
 } from 'lucide-react';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 const ICONS = {
   text: Type, email: Mail, phone: Phone, number: Hash, textarea: AlignLeft,
-  select: ChevronDown, date: Calendar,
+  select: ChevronDown, date: Calendar, file: Paperclip,
 };
 
 export default function PublicFormPage({ params }) {
   const { id } = params;
   const [form, setForm] = useState(null);
   const [answers, setAnswers] = useState({});
+  const [files, setFiles] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
@@ -35,19 +36,34 @@ export default function PublicFormPage({ params }) {
     setAnswers((a) => ({ ...a, [fieldId]: value }));
   }
 
+  function handleFileChange(fieldId, file) {
+    if (file) {
+      setFiles((f) => ({ ...f, [fieldId]: file }));
+    }
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setSubmitting(true);
     setError('');
     try {
+      const formData = new FormData();
+      
+      // Append text answers
+      formData.append('answers', JSON.stringify(answers));
+      
+      // Append files matching their exact field id key identifiers
+      Object.keys(files).forEach((fieldId) => {
+        formData.append(fieldId, files[fieldId]);
+      });
+
       const res = await fetch(`${API}/forms/${id}/submit`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ answers }),
+        body: formData, // Browser auto-sets multi-part header boundaries 
       });
       if (!res.ok) throw new Error('submit failed');
       setSubmitted(true);
-    } catch {
+    } catch (err) {
       setError('Could not submit the form. Please try again.');
     } finally {
       setSubmitting(false);
@@ -100,7 +116,15 @@ export default function PublicFormPage({ params }) {
 
           <div className="mt-8 space-y-6">
             {fields.map((field) => (
-              <FormField key={field.id} field={field} value={answers[field.id]} onChange={(v) => setAnswer(field.id, v)} accent={accent} />
+              <FormField 
+                key={field.id} 
+                field={field} 
+                value={answers[field.id]} 
+                fileValue={files[field.id]}
+                onChange={(v) => setAnswer(field.id, v)} 
+                onFileChange={(f) => handleFileChange(field.id, f)}
+                accent={accent} 
+              />
             ))}
           </div>
 
@@ -120,7 +144,7 @@ export default function PublicFormPage({ params }) {
   );
 }
 
-function FormField({ field, value, onChange, accent }) {
+function FormField({ field, value, fileValue, onChange, onFileChange, accent }) {
   const Icon = ICONS[field.type] || Type;
   const base = 'w-full bg-surface2 border border-border rounded-xl px-3.5 py-3 text-sm placeholder:text-white/25 outline-none focus:ring-1 transition-shadow';
 
@@ -206,6 +230,32 @@ function FormField({ field, value, onChange, accent }) {
             </button>
           ))}
         </div>
+      ) : field.type === 'file' ? (
+        <div className="w-full">
+          <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-white/10 hover:border-emerald-400/40 bg-surface2 rounded-xl cursor-pointer transition-all p-4 text-center group">
+            <input
+              type="file"
+              required={field.required && !fileValue}
+              onChange={(e) => onFileChange(e.target.files[0])}
+              className="hidden"
+            />
+            {fileValue ? (
+              <div className="flex flex-col items-center">
+                <Paperclip className="w-6 h-6 text-emerald-400 mb-1.5" />
+                <span className="text-xs text-white/80 font-medium max-w-xs truncate">{fileValue.name}</span>
+                <span className="text-[10px] text-white/30 mt-0.5">{(fileValue.size / (1024 * 1024)).toFixed(2)} MB</span>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center">
+                <Upload className="w-6 h-6 text-white/30 group-hover:text-emerald-400/80 transition-colors mb-1.5" />
+                <span className="text-xs font-medium text-white/50 group-hover:text-white/80 transition-colors">
+                  {field.placeholder || 'Click or drag file to upload'}
+                </span>
+                <span className="text-[10px] text-white/20 mt-1">Maximum size limit: 10MB</span>
+              </div>
+            )}
+          </label>
+        </div>
       ) : (
         <input
           type={field.type === 'date' ? 'date' : field.type === 'number' ? 'number' : field.type === 'email' ? 'email' : field.type === 'phone' ? 'tel' : 'text'}
@@ -214,6 +264,7 @@ function FormField({ field, value, onChange, accent }) {
           value={value || ''}
           onChange={(e) => onChange(e.target.value)}
           className={base}
+          style={{ '--tw-ring-color': accent }}
         />
       )}
     </div>

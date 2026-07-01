@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Sparkles, Send, ArrowLeft, Share2, Loader2, Star, Check,
-  Type, Mail, Phone, Hash, AlignLeft, ChevronDown, Circle, Calendar, BarChart3, Link2, MessageSquare, ListTodo
+  Type, Mail, Phone, Hash, AlignLeft, ChevronDown, Circle, Calendar, BarChart3, Link2, MessageSquare, ListTodo, Paperclip, X, Copy, MessageCircle, Twitter, Linkedin
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -12,7 +12,7 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 const FIELD_ICONS = {
   text: Type, email: Mail, phone: Phone, number: Hash, textarea: AlignLeft,
-  select: ChevronDown, radio: Circle, checkbox: Check, date: Calendar, rating: Star,
+  select: ChevronDown, radio: Circle, checkbox: Check, date: Calendar, rating: Star, file: Paperclip
 };
 
 function BuilderInner() {
@@ -27,13 +27,11 @@ function BuilderInner() {
   ]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
-  const [summary, setSummary] = useState('');
-  const [summaryLoading, setSummaryLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [submissionsCount, setSubmissionsCount] = useState(0);
   
-  const [submissions, setSubmissions] = useState([]);
-  const [loadingSubmissions, setLoadingSubmissions] = useState(false);
-  const [activeTab, setActiveTab] = useState('chat');
+  // Share Hub Specific State
+  const [showShareModal, setShowShareModal] = useState(false);
   
   const scrollRef = useRef(null);
 
@@ -51,28 +49,17 @@ function BuilderInner() {
       .then(setForm)
       .catch((err) => console.error("Fetch form failed:", err));
       
-    fetchSubmissions();
+    authFetch(`/forms/${formId}/submissions`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) setSubmissionsCount(data.length);
+      })
+      .catch((err) => console.error('Failed to load count template:', err));
   }, [formId, user]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages]);
-
-  async function fetchSubmissions() {
-    if (!formId) return;
-    setLoadingSubmissions(true);
-    try {
-      const res = await authFetch(`/forms/${formId}/submissions`);
-      if (res.ok) {
-        const data = await res.json();
-        setSubmissions(Array.isArray(data) ? data : []);
-      }
-    } catch (err) {
-      console.error('Failed to load submissions:', err);
-    } finally {
-      setLoadingSubmissions(false);
-    }
-  }
 
   async function sendInstruction(e) {
     e.preventDefault();
@@ -107,23 +94,10 @@ function BuilderInner() {
     }
   }
 
-  async function generateSummary() {
-    setSummaryLoading(true);
-    setSummary('');
-    try {
-      const res = await authFetch(`/ai/summarize/${formId}`);
-      const data = await res.json();
-      setSummary(data.summary || 'No summary available.');
-    } catch {
-      setSummary('Failed to generate summary.');
-    } finally {
-      setSummaryLoading(false);
-    }
-  }
+  const liveFormUrl = typeof window !== 'undefined' ? `${window.location.origin}/form/${formId}` : '';
 
   function copyLink() {
-    const url = `${window.location.origin}/form/${formId}`;
-    navigator.clipboard.writeText(url).then(() => {
+    navigator.clipboard.writeText(liveFormUrl).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     });
@@ -144,7 +118,7 @@ function BuilderInner() {
   if (!form) {
     return (
       <div className="h-screen flex items-center justify-center bg-canvas">
-        <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
+        <Loader2 className="w-6 h-6 animate-spin text-[#10b981]" />
       </div>
     );
   }
@@ -154,186 +128,103 @@ function BuilderInner() {
 
   return (
     <div className="h-screen flex flex-col bg-canvas text-[#e7e9ec]">
+      
+      {/* Upper Workspace Control Header Navbar */}
       <header className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-border glass z-10">
         <div className="flex items-center gap-3 min-w-0">
-          <button onClick={() => router.push('/')} className="text-white/50 hover:text-white shrink-0">
+          <button onClick={() => router.push('/dashboard')} className="text-white/50 hover:text-white shrink-0">
             <ArrowLeft className="w-5 h-5" />
           </button>
           <span className="font-display font-medium truncate text-white">{form.title}</span>
         </div>
-        <div className="flex items-center gap-3 shrink-0">
+        
+        <div className="flex items-center gap-2 shrink-0">
           <button
-            onClick={copyLink}
-            title="Copy shareable link"
+            onClick={() => router.push(`/builder/responses?id=${formId}`)}
             className="flex items-center gap-1.5 text-xs text-white/60 hover:text-emerald-300 border border-white/10 rounded-lg px-3 py-1.5 transition-colors"
           >
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Link2 className="w-3.5 h-3.5" />}
-            {copied ? 'Copied' : 'Copy link'}
+            <BarChart3 className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Responses Center</span>
           </button>
+
           <button
-            onClick={generateSummary}
-            className="hidden sm:flex items-center gap-1.5 text-xs text-white/60 hover:text-emerald-300 border border-white/10 rounded-lg px-3 py-1.5 transition-colors"
+            onClick={() => setShowShareModal(true)}
+            className="flex items-center gap-1.5 text-xs bg-emerald-500 hover:bg-emerald-400 text-canvas font-semibold rounded-lg px-3 py-1.5 shadow-md transition-all active:scale-95"
           >
-            <BarChart3 className="w-3.5 h-3.5" /> AI Summary
+            <Share2 className="w-3.5 h-3.5" /> <span>Share Form</span>
           </button>
-          <a
-            href={`/form/${formId}`}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-1.5 text-xs bg-emerald-500 hover:bg-emerald-400 text-canvas font-medium rounded-lg px-3 py-1.5 shadow-lg shadow-emerald-500/10 transition-all duration-200"
-          >
-            <Share2 className="w-3.5 h-3.5" /> Share
-          </a>
         </div>
       </header>
 
+      {/* Main Dual-Column Split Area Pane Layout */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-        {/* FIX: Added 'overflow-hidden' container style rule to prevent the sidebar components from collapsing/hiding components on low layouts */}
-        <div className="lg:w-[380px] flex flex-col border-b lg:border-b-0 lg:border-r border-border h-[45vh] lg:h-full bg-canvas shrink-0 overflow-hidden">
-          
-          {/* Tab Navigation Menu Area */}
-          <div className="flex border-b border-border bg-surface/20 text-xs font-medium uppercase tracking-wider text-white/40 select-none shrink-0 relative z-20">
-            <button
-              onClick={() => setActiveTab('chat')}
-              className={`flex-1 py-4 flex items-center justify-center gap-2 border-b-2 transition-all ${
-                activeTab === 'chat'
-                  ? 'text-emerald-400 border-emerald-500 bg-white/[0.02]'
-                  : 'border-transparent hover:text-white/80 hover:bg-white/[0.01]'
-              }`}
-            >
+        
+        {/* Left Column Drawer Chat System */}
+        <div className="lg:w-[400px] flex flex-col border-b lg:border-b-0 lg:border-r border-border h-[40vh] lg:h-full bg-canvas shrink-0 overflow-hidden">
+          <div className="flex border-b border-border bg-surface/20 text-xs font-semibold uppercase tracking-wider text-white/40 select-none shrink-0 relative z-20">
+            <div className="flex-1 py-3.5 flex items-center justify-center gap-2 border-b-2 border-emerald-500 text-emerald-400 bg-white/[0.01]">
               <MessageSquare className="w-3.5 h-3.5" />
-              AI Assistant
-            </button>
+              AI Assistant Workspace
+            </div>
             <button
-              onClick={() => { setActiveTab('submissions'); fetchSubmissions(); }}
-              className={`flex-1 py-4 flex items-center justify-center gap-2 border-b-2 transition-all ${
-                activeTab === 'submissions'
-                  ? 'text-emerald-400 border-emerald-500 bg-white/[0.02]'
-                  : 'border-transparent hover:text-white/80 hover:bg-white/[0.01]'
-              }`}
+              onClick={() => router.push(`/builder/responses?id=${formId}`)}
+              className="flex-1 py-3.5 flex items-center justify-center gap-2 border-b-2 border-transparent text-white/40 hover:text-white/90 transition-all"
             >
               <ListTodo className="w-3.5 h-3.5" />
-              Responses ({submissions.length})
+              Responses Panel ({submissionsCount})
             </button>
           </div>
 
-          {/* VIEW TAB 1: AI Chat Assistant Panel */}
-          {activeTab === 'chat' && (
-            <>
-              <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-                {messages.map((m, i) => (
-                  <div
-                    key={i}
-                    className={`max-w-[90%] text-sm rounded-2xl px-3.5 py-2.5 animate-fade-up ${
-                      m.role === 'user'
-                        ? 'bg-emerald-500 text-canvas ml-auto rounded-br-sm font-medium'
-                        : 'bg-surface2 text-white/80 rounded-bl-sm border border-white/5'
-                    }`}
-                  >
-                    {m.text}
-                  </div>
-                ))}
-                {sending && (
-                  <div className="flex items-center gap-2 text-white/40 text-xs px-2 animate-pulse">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" /> Updating form layout...
-                  </div>
-                )}
-                {summaryLoading && (
-                  <div className="flex items-center gap-2 text-white/40 text-xs px-2 animate-pulse">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" /> Analyzing metrics...
-                  </div>
-                )}
-                {summary && (
-                  <div className="bg-surface2 border border-emerald-500/10 rounded-2xl p-4 text-sm text-white/80 whitespace-pre-wrap leading-relaxed animate-fade-up shadow-inner">
-                    <p className="text-emerald-400 text-xs font-semibold mb-2 uppercase tracking-wider">Executive Insights</p>
-                    {summary}
-                  </div>
-                )}
+          <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 custom-scrollbar">
+            {messages.map((m, i) => (
+              <div
+                key={i}
+                className={`max-w-[90%] text-sm rounded-2xl px-3.5 py-2.5 animate-fade-up ${
+                  m.role === 'user'
+                    ? 'bg-emerald-500 text-canvas ml-auto rounded-br-sm font-medium shadow-sm'
+                    : 'bg-surface2 text-white/80 rounded-bl-sm border border-white/5'
+                }`}
+              >
+                {m.text}
               </div>
-              <form onSubmit={sendInstruction} className="p-3 border-t border-border flex gap-2 bg-canvas shrink-0">
-                <input
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder="e.g. Add a phone field, make it emerald"
-                  className="flex-1 bg-surface2 border border-white/5 text-white rounded-xl px-3.5 py-2.5 text-sm outline-none focus:ring-1 focus:ring-emerald-400/30 placeholder:text-white/20"
-                  disabled={sending}
-                />
-                <button
-                  type="submit"
-                  disabled={sending || !input.trim()}
-                  className="bg-emerald-500 hover:bg-emerald-400 disabled:bg-white/5 text-canvas disabled:text-white/30 rounded-xl px-3.5 shrink-0 transition-colors"
-                >
-                  <Send className="w-4 h-4" />
-                </button>
-              </form>
-            </>
-          )}
+            ))}
+            {sending && (
+              <div className="flex items-center gap-2 text-white/40 text-xs px-2 animate-pulse">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" /> Modifying schema layout structure...
+              </div>
+            )}
+          </div>
 
-          {activeTab === 'submissions' && (
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 custom-scrollbar">
-              {loadingSubmissions ? (
-                <div className="flex flex-col items-center justify-center py-16 text-white/40 gap-3 text-sm">
-                  <Loader2 className="w-5 h-5 animate-spin text-emerald-400" />
-                  <span>Loading submissions...</span>
-                </div>
-              ) : submissions.length === 0 ? (
-                <div className="text-center py-14 text-sm text-white/30 border border-dashed border-white/5 rounded-2xl px-4">
-                  No responses recorded yet.<br />Share the live link to collect data!
-                </div>
-              ) : (
-                submissions.map((sub, idx) => (
-                  <div key={sub.id} className="bg-surface2 rounded-xl p-4 border border-white/[0.03] space-y-3 shadow-md animate-fade-up">
-                    <div className="flex justify-between items-center border-b border-white/5 pb-2">
-                      <span className="text-xs text-emerald-400 font-semibold tracking-wide">
-                        Submission #{submissions.length - idx}
-                      </span>
-                      <span className="text-[10px] text-white/30">
-                        {new Date(sub.created_at).toLocaleDateString(undefined, {
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </span>
-                    </div>
-
-                    <div className="space-y-2 text-xs">
-                      {fields.map((field) => {
-                        const rawAns = sub.answers?.[field.id];
-                        return (
-                          <div key={field.id} className="grid grid-cols-3 gap-2 py-0.5">
-                            <span className="text-white/40 font-medium truncate" title={field.label}>
-                              {field.label}:
-                            </span>
-                            <span className="col-span-2 text-white/80 break-words">
-                              {Array.isArray(rawAns)
-                                ? rawAns.join(', ')
-                                : rawAns !== undefined && rawAns !== null && rawAns !== ''
-                                ? String(rawAns)
-                                : <em className="text-white/20 font-light">Left blank</em>}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
+          <form onSubmit={sendInstruction} className="p-3 border-t border-border flex gap-2 bg-canvas shrink-0">
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="e.g., Add a file upload box field"
+              className="flex-1 bg-surface2 border border-white/5 text-white rounded-xl px-3.5 py-2.5 text-sm outline-none focus:ring-1 focus:ring-emerald-400/30 placeholder:text-white/20"
+              disabled={sending}
+            />
+            <button
+              type="submit"
+              disabled={sending || !input.trim()}
+              className="bg-emerald-500 hover:bg-emerald-400 disabled:bg-white/5 text-canvas disabled:text-white/30 rounded-xl px-3.5 shrink-0 transition-colors flex items-center justify-center"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </form>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-8 sm:py-12 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.02),transparent_60%)]">
+        {/* Right Column: Live Form Preview Frame View Panel */}
+        <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6 sm:py-10 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.01),transparent_60%)]">
           <div className="max-w-lg mx-auto">
-            <div className="glass rounded-3xl p-6 sm:p-8 shadow-2xl shadow-black/40 border border-white/[0.06]">
+            <div className="glass rounded-2xl p-5 sm:p-8 shadow-2xl shadow-black/40 border border-white/[0.05]">
               <div className="flex items-center gap-2 mb-1">
-                <Sparkles className="w-4 h-4" style={{ color: accent }} />
-                <span className="text-xs uppercase tracking-wider text-white/40">Live preview</span>
+                <Sparkles className="w-3.5 h-3.5" style={{ color: accent }} />
+                <span className="text-[10px] uppercase tracking-wider text-white/40 font-bold">Real-Time Canvas Preview</span>
               </div>
-              <h2 className="font-display text-2xl font-semibold mt-2 text-white">{form.title}</h2>
-              {form.description && <p className="text-white/50 text-sm mt-1.5">{form.description}</p>}
+              
+              <h2 className="font-display text-xl sm:text-2xl font-semibold mt-2 text-white tracking-tight">{form.title}</h2>
+              {form.description && <p className="text-white/50 text-xs sm:text-sm mt-1.5 leading-relaxed">{form.description}</p>}
 
-              <div className="mt-6 space-y-5">
+              <div className="mt-6 space-y-4">
                 {fields.map((field) => (
                   <PreviewField key={field.id} field={field} accent={accent} />
                 ))}
@@ -342,16 +233,102 @@ function BuilderInner() {
               {fields.length > 0 && (
                 <button
                   style={{ backgroundColor: accent }}
-                  className="w-full mt-7 text-canvas font-medium rounded-xl py-3 text-sm transition-all duration-200 opacity-80 cursor-not-allowed"
+                  className="w-full mt-7 text-canvas font-medium rounded-xl py-3 text-sm opacity-30 cursor-not-allowed"
                   disabled
                 >
-                  Submit
+                  Submit Form (Preview Framework)
                 </button>
               )}
             </div>
           </div>
         </div>
+
       </div>
+
+      {/* NEW: Modular Cross-Platform Distribution Share Hub Modal Window Overlay Component */}
+      {showShareModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md bg-[#12151b] border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-scale-up">
+            
+            <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between bg-white/[0.01]">
+              <div className="flex items-center gap-2">
+                <Share2 className="w-4 h-4 text-emerald-400" />
+                <h3 className="font-display font-semibold text-white text-base">Share Public Form Link</h3>
+              </div>
+              <button 
+                onClick={() => setShowShareModal(false)}
+                className="p-1.5 hover:bg-white/5 rounded-lg text-white/40 hover:text-white transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-5 bg-canvas/30">
+              
+              {/* Copy URL Clip Field Grid box */}
+              <div className="space-y-1.5">
+                <span className="text-[10px] uppercase font-bold text-white/30 tracking-wide block">Direct Form Link</span>
+                <div className="flex gap-2 p-2 rounded-xl bg-black/40 border border-white/5 items-center justify-between">
+                  <span className="text-xs font-mono text-white/60 truncate pl-1 flex-1">{liveFormUrl}</span>
+                  <button
+                    onClick={copyLink}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg font-semibold bg-white/5 hover:bg-white/15 text-white/90 transition-all shrink-0 border border-white/5"
+                  >
+                    {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copied ? 'Copied' : 'Copy'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Native App Distribution Share Grid Hub Row elements */}
+              <div className="space-y-2">
+                <span className="text-[10px] uppercase font-bold text-white/30 tracking-wide block">Share via Platforms</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <a
+                    href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`Please fill out this form: ${liveFormUrl}`)}`}
+                    target="_blank" rel="noreferrer"
+                    className="flex items-center justify-center gap-2 bg-[#25D366]/10 hover:bg-[#25D366]/20 border border-[#25D366]/20 text-[#25D366] py-3 rounded-xl text-xs font-semibold transition-all"
+                  >
+                    <MessageCircle className="w-4 h-4" /> WhatsApp
+                  </a>
+                  <a
+                    href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(liveFormUrl)}`}
+                    target="_blank" rel="noreferrer"
+                    className="flex items-center justify-center gap-2 bg-[#0077B5]/10 hover:bg-[#0077B5]/20 border border-[#0077B5]/20 text-[#0077B5] py-3 rounded-xl text-xs font-semibold transition-all"
+                  >
+                    <Linkedin className="w-4 h-4" /> LinkedIn
+                  </a>
+                  <a
+                    href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Check out my form built via Formix: ${liveFormUrl}`)}`}
+                    target="_blank" rel="noreferrer"
+                    className="flex items-center justify-center gap-2 bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 text-white/90 py-3 rounded-xl text-xs font-semibold transition-all"
+                  >
+                    <Twitter className="w-4 h-4 fill-white" /> Twitter / X
+                  </a>
+                  <a
+                    href={`mailto:?subject=${encodeURIComponent(form.title)}&body=${encodeURIComponent(`Please take a minute to submit your response here: ${liveFormUrl}`)}`}
+                    className="flex items-center justify-center gap-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 py-3 rounded-xl text-xs font-semibold transition-all"
+                  >
+                    <Mail className="w-4 h-4" /> Email Client
+                  </a>
+                </div>
+              </div>
+
+            </div>
+
+            <div className="p-4 border-t border-white/5 bg-[#12151b] flex justify-end">
+              <button
+                onClick={() => setShowShareModal(false)}
+                className="w-full px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl font-semibold text-xs border border-white/5 text-white/60 transition-all"
+              >
+                Done
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
@@ -360,52 +337,39 @@ function PreviewField({ field, accent }) {
   const Icon = FIELD_ICONS[field.type] || Type;
 
   return (
-    <div className="animate-fade-up">
-      <label className="flex items-center gap-1.5 text-sm font-medium text-white/80 mb-1.5">
+    <div className="animate-fade-up text-left">
+      <label className="flex items-center gap-1.5 text-xs sm:text-sm font-medium text-white/80 mb-1.5">
         <Icon className="w-3.5 h-3.5 text-white/30" />
         {field.label}
         {field.required && <span style={{ color: accent }}>*</span>}
       </label>
 
       {field.type === 'textarea' ? (
-        <textarea
-          placeholder={field.placeholder}
-          disabled
-          rows={3}
-          className="w-full bg-[#12151b] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-white/25 resize-none outline-none cursor-not-allowed"
-        />
+        <textarea placeholder={field.placeholder} disabled rows={3} className="w-full bg-[#12151b] border border-white/10 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-white resize-none outline-none cursor-not-allowed" />
       ) : field.type === 'select' ? (
-        <select disabled className="w-full bg-[#12151b] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white/40 cursor-not-allowed">
-          <option>{field.placeholder || 'Select an option'}</option>
-          {(field.options || []).map((o) => (
-            <option key={o}>{o}</option>
-          ))}
+        <select disabled className="w-full bg-[#12151b] border border-white/10 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-white/40 cursor-not-allowed">
+          <option>{field.placeholder || 'Select option'}</option>
         </select>
       ) : field.type === 'radio' || field.type === 'checkbox' ? (
-        <div className="space-y-1.5 pl-1">
+        <div className="space-y-1 pl-0.5">
           {(field.options || []).map((o) => (
-            <label key={o} className="flex items-center gap-2 text-sm text-white/60 cursor-not-allowed">
-              <span
-                className="w-3.5 h-3.5 rounded-full border border-white/20 bg-[#12151b] inline-block"
-                style={field.type === 'checkbox' ? { borderRadius: 4 } : {}}
-              />
+            <label key={o} className="flex items-center gap-2 text-xs sm:text-sm text-white/50 cursor-not-allowed">
+              <span className="w-3 h-3 rounded-full border border-white/20 bg-[#12151b] inline-block" style={field.type === 'checkbox' ? { borderRadius: 3 } : {}} />
               {o}
             </label>
           ))}
         </div>
       ) : field.type === 'rating' ? (
-        <div className="flex gap-1.5 pl-0.5">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <Star key={i} className="w-5 h-5 text-white/20 cursor-not-allowed" />
-          ))}
+        <div className="flex gap-1 pl-0.5">
+          {[1, 2, 3, 4, 5].map((i) => <Star key={i} className="w-4 h-4 text-white/20" />)}
+        </div>
+      ) : field.type === 'file' ? (
+        <div className="w-full bg-[#12151b] border border-dashed border-white/10 rounded-xl p-4 flex flex-col items-center justify-center text-center cursor-not-allowed">
+          <Paperclip className="w-4 h-4 text-white/20 mb-1" />
+          <span className="text-[11px] text-white/30">{field.placeholder || 'File Attachment field preview Box'}</span>
         </div>
       ) : (
-        <input
-          type={field.type === 'date' ? 'date' : field.type === 'number' ? 'number' : 'text'}
-          placeholder={field.placeholder}
-          disabled
-          className="w-full bg-[#12151b] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-white/25 outline-none cursor-not-allowed"
-        />
+        <input type={field.type === 'date' ? 'date' : field.type === 'number' ? 'number' : 'text'} placeholder={field.placeholder} disabled className="w-full bg-[#12151b] border border-white/10 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-white outline-none cursor-not-allowed" />
       )}
     </div>
   );
@@ -413,7 +377,7 @@ function PreviewField({ field, accent }) {
 
 export default function BuilderPage() {
   return (
-    <Suspense fallback={<div className="h-screen flex items-center justify-center text-white/40 bg-[#0a0c10]">Loading...</div>}>
+    <Suspense fallback={<div className="h-screen flex items-center justify-center text-white/40 bg-[#0a0c10]">Loading workspace...</div>}>
       <BuilderInner />
     </Suspense>
   );

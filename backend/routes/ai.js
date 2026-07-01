@@ -23,7 +23,7 @@ The JSON object must have this exact shape:
   "fields": [
     {
       "id": string (kebab-case unique slug),
-      "type": "text" | "email" | "phone" | "number" | "textarea" | "select" | "radio" | "checkbox" | "date" | "rating",
+      "type": "text" | "email" | "phone" | "number" | "textarea" | "select" | "radio" | "checkbox" | "date" | "rating" | "file",
       "label": string,
       "placeholder": string,
       "required": boolean,

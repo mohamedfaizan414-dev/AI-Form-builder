@@ -1,10 +1,51 @@
 const express = require('express');
+const multer = require('multer');
+const cloudinary = require('cloudinary').v2;
+const streamifier = require('streamifier');
 const { pool } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
-// POST /api/forms — create a new form (owned by the logged-in user)
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// Configure Multer memory storage for multi-part parsing
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+});
+
+// Helper function to handle Cloudinary streaming uploads
+const uploadToCloudinary = (fileBuffer, fieldId) => {
+  return new Promise((resolve, reject) => {
+    const cld_upload_stream = cloudinary.uploader.upload_stream(
+      {
+        folder: 'formix_submissions',
+        resource_type: 'auto',
+        public_id: `${fieldId}_${Date.now()}`,
+      },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve({
+          url: result.secure_url,
+          name: result.original_filename,
+          size: result.bytes,
+          format: result.format,
+          resource_type: result.resource_type
+        });
+      }
+    );
+    streamifier.createReadStream(fileBuffer).pipe(cld_upload_stream);
+  });
+};
+
+// POST /api/forms — create a new form
 router.post('/', requireAuth, async (req, res) => {
   try {
     const { title, description, schema, theme } = req.body;
@@ -26,7 +67,7 @@ router.post('/', requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/forms — list the logged-in user's forms (dashboard)
+// GET /api/forms — list the logged-in user's forms
 router.get('/', requireAuth, async (req, res) => {
   try {
     const result = await pool.query(
@@ -42,8 +83,6 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 // GET /api/forms/:id — fetch a single form
-// Public on purpose: this powers both the public fill-out page and the
-// builder preview. No sensitive data lives in `schema`/`theme`.
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -56,7 +95,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// PUT /api/forms/:id — update schema/title/theme (owner only)
+// PUT /api/forms/:id — update form (owner only)
 router.put('/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
@@ -103,29 +142,46 @@ router.delete('/:id', requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/forms/:id/submit — public submission endpoint (no auth: anyone with the link can respond)
-router.post('/:id/submit', async (req, res) => {
+// POST /api/forms/:id/submit — supports public multi-part form payloads with asset streaming files to Cloudinary
+router.post('/:id/submit', upload.any(), async (req, res) => {
   try {
     const { id } = req.params;
-    const { answers } = req.body;
-    if (!answers || typeof answers !== 'object') {
-      return res.status(400).json({ error: 'answers object is required' });
-    }
-    const formCheck = await pool.query('SELECT id FROM forms WHERE id = $1', [id]);
+    
+    // Check if form exists
+    const formCheck = await pool.query('SELECT id, schema FROM forms WHERE id = $1', [id]);
     if (formCheck.rows.length === 0) return res.status(404).json({ error: 'Form not found' });
+
+    // Parse text answers object from incoming structure
+    let parsedAnswers = {};
+    if (req.body.answers && typeof req.body.answers === 'string') {
+      parsedAnswers = JSON.parse(req.body.answers);
+    } else if (req.body.answers && typeof req.body.answers === 'object') {
+      parsedAnswers = req.body.answers;
+    } else if (req.body) {
+      parsedAnswers = { ...req.body };
+    }
+
+    // Upload files to Cloudinary and append meta payloads directly inside answers
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        // Multer appends fieldname using the distinct field slug configured in form schema layout
+        const uploadDetails = await uploadToCloudinary(file.buffer, file.fieldname);
+        parsedAnswers[file.fieldname] = uploadDetails;
+      }
+    }
 
     const result = await pool.query(
       `INSERT INTO submissions (form_id, answers) VALUES ($1, $2) RETURNING *`,
-      [id, JSON.stringify(answers)]
+      [id, JSON.stringify(parsedAnswers)]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('Submit form error:', err.message);
-    res.status(500).json({ error: 'Failed to submit form' });
+    res.status(500).json({ error: 'Failed to process submission' });
   }
 });
 
-// GET /api/forms/:id/submissions — list submissions for a form (owner only)
+// GET /api/forms/:id/submissions — list responses
 router.get('/:id/submissions', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
